@@ -1,6 +1,6 @@
 import React from 'react';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, getDay, addDays } from 'date-fns';
-import { Calendar as CalendarIcon, Building2, Palmtree } from 'lucide-react';
+import { Calendar as CalendarIcon } from 'lucide-react';
 import type { AttendanceRecord, Holiday } from '../types/attendance';
 
 interface CalendarProps {
@@ -52,17 +52,11 @@ export function Calendar({ currentDate, attendance, holidays, onDateClick, onHol
         <div className="flex items-center gap-4 text-sm">
           <div className="flex items-center gap-2">
             <div className="w-4 h-4 rounded bg-green-100 border border-green-200"></div>
-            <div className="flex items-center gap-1 text-gray-600">
-              <Building2 className="w-4 h-4" />
-              <span>In Office</span>
-            </div>
+            <span className="text-gray-600">In Office</span>
           </div>
           <div className="flex items-center gap-2">
             <div className="w-4 h-4 rounded bg-amber-100 border border-amber-200"></div>
-            <div className="flex items-center gap-1 text-gray-600">
-              <Palmtree className="w-4 h-4" />
-              <span>Holiday</span>
-            </div>
+            <span className="text-gray-600">Holiday</span>
           </div>
         </div>
       </div>

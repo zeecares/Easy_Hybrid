@@ -14,15 +14,14 @@ Welcome to the Easy Hybrid web office planner repository! This project is a fron
 
 ## Project Overview
 
-Easy Hybrid is a responsive, high-quality web planner designed for office environments, allowing users to efficiently organize and manage tasks. Built on top of the `bolt-vite-react-ts` template, it supports JSX syntax, Tailwind CSS, and utilizes a variety of icons from the Lucide React library.
-
+Easy Hybrid is a responsive web planner designed to track how many days I need to go to office.
 ## Features
-
-- **React & TypeScript**: Ensures a robust and type-safe development environment.
-- **Tailwind CSS**: Fast and efficient styling with a utility-first approach.
-- **Lucide Icons**: Modern and versatile icons integrated using Lucide React.
-- **Responsive Design**: Built to look great on any screen size.
-- **Vite Bundler**: Fast development and build times, optimized for modern front-end development.
+- **Days required**: Show how many days you need to be in office.
+- **Progress**: Overall progress and progress as of day which could be used to compare with commany monthly report.
+- **One click attendance**: Mark attendance for today with one click.
+- **Two clicks holiday**: Mark holiday for any date with two clicks. Holidays won't be counted in attendence percentage.
+- **Data in your hand**: Data save as browser local storage. No need to login or signup.
+- **Export/import**: Export your data to a file and import it back anytime.
 
 ## Getting Started
 
