@@ -1,6 +1,7 @@
 # Easy Hybrid Web Office Planner
 
 Welcome to the Easy Hybrid web office planner repository! This project is a front-end web application designed with React, TypeScript, and Vite, leveraging Tailwind CSS for styling and Lucide React for icons.
+
 https://easy-hybrid.pages.dev/
 ## Table of Contents
 
