@@ -214,6 +214,31 @@ export function QuarterlyStats({
       </div>
       
       <div className="space-y-6">
+        {/* Main Current Progress - Top Focus */}
+        {showCurrentProgress && (
+          <div className="bg-gradient-to-br from-indigo-50 to-white p-6 rounded-xl border border-indigo-100">
+            <div className="flex justify-between items-center mb-4">
+              <span className="text-xl font-semibold text-indigo-900">Progress So Far</span>
+              <span className="text-4xl font-bold text-indigo-600">
+                {currentProgress.rate.toFixed(1)}%
+              </span>
+            </div>
+            <div className="w-full bg-white rounded-full h-4 mb-3">
+              <div 
+                className="bg-indigo-600 h-4 rounded-full transition-all duration-500"
+                style={{ width: `${Math.min(currentProgress.rate, 100)}%` }}
+              />
+            </div>
+            <div className="text-sm text-indigo-700">
+              {currentProgress.presentDays} days in office out of {currentProgress.workdaysUntilToday} workdays so far
+            </div>
+            <div className="text-xs text-indigo-600 mt-1">
+              Total workdays this quarter: {stats.totalWorkdays} (excluding weekends & holidays)
+            </div>
+          </div>
+        )}
+
+        {/* Q2 Progress Section */}
         <div className="bg-gradient-to-br from-indigo-50 to-white p-4 rounded-xl border border-indigo-100">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
@@ -240,7 +265,7 @@ export function QuarterlyStats({
               )}
             </div>
             <span className="text-2xl font-bold text-indigo-600">
-              {((stats.presentDays / stats.requiredDays) * 100).toFixed(1)}%
+              {stats.presentDays} out of {stats.requiredDays} days
             </span>
           </div>
           
@@ -250,40 +275,9 @@ export function QuarterlyStats({
               style={{ width: `${Math.min((stats.presentDays / stats.requiredDays) * 100, 100)}%` }}
             />
           </div>
-
-          {showCurrentProgress && (
-            <div className="mt-4 pt-4 border-t border-indigo-100">
-              <div className="flex justify-between items-center mb-2">
-                <span className="text-sm font-medium text-indigo-900">Current Progress (As of Today)</span>
-                <span className="text-lg font-bold text-indigo-600">
-                  {currentProgress.rate.toFixed(1)}%
-                </span>
-              </div>
-              <div className="w-full bg-white rounded-full h-2">
-                <div 
-                  className="bg-indigo-400 h-2 rounded-full transition-all duration-500"
-                  style={{ width: `${Math.min(currentProgress.rate, 100)}%` }}
-                />
-              </div>
-              <div className="mt-1 text-xs text-gray-500">
-                {currentProgress.presentDays} days in office out of {currentProgress.workdaysUntilToday} workdays so far
-              </div>
-            </div>
-          )}
         </div>
         
-        <div className="grid grid-cols-2 gap-4">
-          <div className="bg-gray-50 p-4 rounded-lg">
-            <div className="text-sm text-gray-500">Days Present</div>
-            <div className="text-xl font-semibold">{stats.presentDays}</div>
-            <div className="text-xs text-gray-400 mt-1">of {stats.requiredDays} required</div>
-          </div>
-          <div className="bg-gray-50 p-4 rounded-lg">
-            <div className="text-sm text-gray-500">Total Workdays</div>
-            <div className="text-xl font-semibold">{stats.totalWorkdays}</div>
-            <div className="text-xs text-gray-400 mt-1">excluding weekends & holidays</div>
-          </div>
-        </div>
+
 
         {targetMet ? (
           <div className="bg-green-50 border border-green-200 p-4 rounded-lg">
