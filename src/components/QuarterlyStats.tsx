@@ -1,4 +1,4 @@
-import React from 'react';
+// React import removed - using JSX transform
 import { format, isWithinInterval, startOfMonth, endOfMonth, startOfYear, endOfYear, eachDayOfInterval, isSameDay, isAfter, isBefore } from 'date-fns';
 import { BarChart3, Calendar as CalendarIcon, Target } from 'lucide-react';
 import type { AttendanceRecord, Holiday, QuarterInfo, Period } from '../types/attendance';
@@ -11,7 +11,6 @@ interface QuarterlyStatsProps {
   targetRate: number;
   selectedPeriod: Period;
   onTargetChange: (rate: number) => void;
-  onPeriodChange: (period: Period) => void;
 }
 
 const getQuarterDates = (date: Date) => {
@@ -51,9 +50,57 @@ export function QuarterlyStats({
   currentDate,
   targetRate,
   selectedPeriod,
-  onTargetChange,
-  onPeriodChange
+  onTargetChange
 }: QuarterlyStatsProps) {
+  // Calculate quarter-to-date percentage up to last month
+  const calculateUpToLastMonth = () => {
+    const today = new Date();
+    const currentMonth = today.getMonth() + 1;
+    
+    // Get the previous month
+    const lastMonth = currentMonth === 1 ? 12 : currentMonth - 1;
+    const lastMonthYear = currentMonth === 1 ? today.getFullYear() - 1 : today.getFullYear();
+    
+    // Get quarter dates for current date
+    const quarterDates = getQuarterDates(currentDate);
+    if (!quarterDates) return null;
+    
+    // Calculate end of last month
+    const lastDayOfLastMonth = new Date(lastMonthYear, lastMonth, 0);
+    
+    // Only calculate if last month is within the current quarter
+    if (lastDayOfLastMonth < quarterDates.start) {
+      return null; // Last month is before current quarter started
+    }
+    
+    const periodEnd = lastDayOfLastMonth < quarterDates.end ? lastDayOfLastMonth : quarterDates.end;
+    
+    // Calculate workdays from quarter start to end of last month
+    const allDays = eachDayOfInterval({ start: quarterDates.start, end: periodEnd });
+    const workdays = allDays.filter(date => {
+      const isHoliday = holidays.some(h => isSameDay(new Date(h.date), date));
+      const isSat = format(date, 'E') === 'Sat';
+      const isSun = format(date, 'E') === 'Sun';
+      return !isHoliday && !isSat && !isSun;
+    });
+    
+    // Calculate office days in this period
+    const officeDays = attendance.filter(record => {
+      const recordDate = new Date(record.date);
+      return record.present && 
+             isWithinInterval(recordDate, { start: quarterDates.start, end: periodEnd });
+    }).length;
+    
+    const percentage = workdays.length > 0 ? (officeDays / workdays.length) * 100 : 0;
+    
+    return {
+      monthName: format(new Date(lastMonthYear, lastMonth - 1, 1), 'MMMM'),
+      year: lastMonthYear,
+      percentage,
+      officeDays,
+      workdays: workdays.length
+    };
+  };
   const calculateStats = (period: Period) => {
     let start: Date;
     let end: Date;
@@ -197,20 +244,9 @@ export function QuarterlyStats({
 
   return (
     <div className="bg-white rounded-lg shadow p-6">
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-2">
-          <BarChart3 className="w-6 h-6 text-indigo-600" />
-          <h2 className="text-2xl font-semibold">Statistics</h2>
-        </div>
-        <select
-          value={selectedPeriod}
-          onChange={(e) => onPeriodChange(e.target.value as Period)}
-          className="text-sm border rounded-md px-3 py-1.5 bg-gray-50"
-        >
-          <option value="monthly">Monthly</option>
-          <option value="quarterly">Quarterly</option>
-          <option value="yearly">Yearly</option>
-        </select>
+      <div className="flex items-center gap-2 mb-6">
+        <BarChart3 className="w-6 h-6 text-indigo-600" />
+        <h2 className="text-2xl font-semibold">Quarterly Statistics</h2>
       </div>
       
       <div className="space-y-6">
@@ -277,6 +313,39 @@ export function QuarterlyStats({
           </div>
         </div>
         
+        {/* Up to Last Month Section */}
+        {(() => {
+          const upToLastMonthData = calculateUpToLastMonth();
+          return upToLastMonthData ? (
+            <div className="bg-gradient-to-br from-gray-50 to-white p-4 rounded-xl border border-gray-200">
+              <div className="flex justify-between items-center mb-2">
+                <span className="text-lg font-medium text-gray-900">
+                  Up to {upToLastMonthData.monthName} {upToLastMonthData.year}
+                </span>
+                <span className="text-2xl font-bold text-gray-700">
+                  {upToLastMonthData.percentage.toFixed(1)}%
+                </span>
+              </div>
+              
+              <div className="w-full bg-white rounded-full h-2 mb-2">
+                <div 
+                  className={`h-2 rounded-full transition-all duration-500 ${
+                    upToLastMonthData.percentage >= targetRate ? 'bg-green-500' : 'bg-gray-500'
+                  }`}
+                  style={{ width: `${Math.min(upToLastMonthData.percentage, 100)}%` }}
+                />
+              </div>
+              
+              <div className="text-xs text-gray-600">
+                {upToLastMonthData.officeDays} days in office of {upToLastMonthData.workdays} workdays
+              </div>
+              <div className="text-xs text-gray-500 mt-1">
+                Compare with your company monthly report
+              </div>
+            </div>
+          ) : null;
+        })()}
+        
 
 
         {targetMet ? (
@@ -302,6 +371,7 @@ export function QuarterlyStats({
             </div>
           </div>
         )}
+
       </div>
     </div>
   );

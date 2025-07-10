@@ -12,7 +12,7 @@ export interface Holiday {
 }
 
 export type Quarter = 'Q1' | 'Q2' | 'Q3' | 'Q4';
-export type Period = 'monthly' | 'quarterly' | 'yearly';
+export type Period = 'monthly' | 'quarterly' | 'yearly' | 'monthly-summary';
 
 export interface QuarterInfo {
   name: Quarter;
