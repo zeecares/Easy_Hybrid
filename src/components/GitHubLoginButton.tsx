@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
-import { Github, Check, AlertCircle, Loader2 } from 'lucide-react';
+import { Github, AlertCircle, Loader2, LogOut } from 'lucide-react';
 import { gistService } from '../services/gistService';
-import { githubOAuthService } from '../services/githubOAuthService';
+import { githubOAuthService, type GitHubUser } from '../services/githubOAuthService';
 
 interface GitHubLoginButtonProps {
   onSyncComplete?: () => void;
@@ -11,10 +11,29 @@ export function GitHubLoginButton({ onSyncComplete }: GitHubLoginButtonProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [status, setStatus] = useState(gistService.getStatus());
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [user, setUser] = useState<GitHubUser | null>(null);
 
   useEffect(() => {
     setStatus(gistService.getStatus());
-  }, []);
+    
+    // Load user info if we're already connected
+    const loadUserInfo = () => {
+      if (status.enabled && status.hasGist) {
+        // Try to get user info from stored config
+        const userInfo = localStorage.getItem('github_user');
+        
+        if (userInfo) {
+          try {
+            setUser(JSON.parse(userInfo));
+          } catch {
+            console.warn('Failed to load user info');
+          }
+        }
+      }
+    };
+    
+    loadUserInfo();
+  }, [status.enabled, status.hasGist]);
 
   const handleGitHubLogin = async () => {
     setIsLoading(true);
@@ -30,18 +49,38 @@ export function GitHubLoginButton({ onSyncComplete }: GitHubLoginButtonProps) {
         const setupResult = await gistService.setupGist(result.accessToken, true);
         
         if (setupResult.success) {
+          // Store user info for display
+          if (result.user) {
+            localStorage.setItem('github_user', JSON.stringify(result.user));
+            setUser(result.user);
+          }
+          
           setStatus(gistService.getStatus());
           
-          // Perform initial backup
-          const backupResult = await gistService.backupToGist();
-          if (backupResult.success) {
-            setMessage({ 
-              type: 'success', 
-              text: `Welcome ${result.user?.name || result.user?.login}! Data backed up to GitHub.` 
-            });
-            onSyncComplete?.();
-          } else {
-            setMessage({ type: 'error', text: `Login successful, but backup failed: ${backupResult.error}` });
+          // Try to restore data from gist first, then backup current data
+          try {
+            const restoreResult = await gistService.restoreFromGist();
+            if (restoreResult.success) {
+              setMessage({ 
+                type: 'success', 
+                text: `Welcome back ${result.user?.name || result.user?.login}! Data restored from GitHub.` 
+              });
+              onSyncComplete?.(); // Refresh UI with restored data
+            } else {
+              // If restore fails, backup current data
+              const backupResult = await gistService.backupToGist();
+              if (backupResult.success) {
+                setMessage({ 
+                  type: 'success', 
+                  text: `Welcome ${result.user?.name || result.user?.login}! Data backed up to GitHub.` 
+                });
+                onSyncComplete?.();
+              } else {
+                setMessage({ type: 'error', text: `Login successful, but sync failed: ${backupResult.error}` });
+              }
+            }
+          } catch {
+            setMessage({ type: 'error', text: 'Login successful, but data sync failed' });
           }
         } else {
           setMessage({ type: 'error', text: setupResult.error || 'Failed to setup GitHub integration' });
@@ -63,6 +102,8 @@ export function GitHubLoginButton({ onSyncComplete }: GitHubLoginButtonProps) {
     setIsLoading(true);
     try {
       gistService.disable();
+      localStorage.removeItem('github_user');
+      setUser(null);
       setStatus(gistService.getStatus());
       setMessage({ type: 'success', text: 'Disconnected from GitHub' });
     } catch {
@@ -83,20 +124,41 @@ export function GitHubLoginButton({ onSyncComplete }: GitHubLoginButtonProps) {
   if (status.enabled && status.hasGist) {
     return (
       <div className="flex flex-col items-center space-y-2">
-        <button
-          onClick={handleDisconnect}
-          disabled={isLoading}
-          className="flex items-center space-x-2 px-3 py-2 bg-green-100 text-green-800 rounded-lg border border-green-200 hover:bg-green-200 transition-colors disabled:opacity-50"
-        >
-          {isLoading ? (
-            <Loader2 className="w-4 h-4 animate-spin" />
-          ) : (
-            <Check className="w-4 h-4" />
+        <div className="flex items-center space-x-3 px-3 py-2 bg-green-50 rounded-lg border border-green-200">
+          {/* User Avatar */}
+          {user?.avatar_url && (
+            <img 
+              src={user.avatar_url} 
+              alt={user.name || user.login}
+              className="w-6 h-6 rounded-full"
+            />
           )}
-          <span className="text-sm font-medium">GitHub Connected</span>
-        </button>
+          
+          {/* User Info */}
+          <div className="flex flex-col">
+            <span className="text-sm font-medium text-green-800">
+              {user?.name || user?.login || 'GitHub User'}
+            </span>
+            <span className="text-xs text-green-600">Connected</span>
+          </div>
+          
+          {/* Logout Button */}
+          <button
+            onClick={handleDisconnect}
+            disabled={isLoading}
+            className="p-1 text-green-600 hover:text-green-800 hover:bg-green-100 rounded transition-colors disabled:opacity-50"
+            title="Disconnect from GitHub"
+          >
+            {isLoading ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <LogOut className="w-4 h-4" />
+            )}
+          </button>
+        </div>
+        
         {message && (
-          <div className={`text-xs px-2 py-1 rounded ${
+          <div className={`text-xs px-2 py-1 rounded max-w-xs text-center ${
             message.type === 'success' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
           }`}>
             {message.text}
