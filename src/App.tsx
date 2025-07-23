@@ -4,7 +4,7 @@ import { ChevronLeft, ChevronRight, Building2, CalendarCheck2 } from 'lucide-rea
 import { Calendar } from './components/Calendar';
 import { QuarterlyStats } from './components/QuarterlyStats';
 import { QuickActions } from './components/QuickActions';
-import { GistSettings } from './components/GistSettings';
+import { GitHubLoginButton } from './components/GitHubLoginButton';
 import { gistService } from './services/gistService';
 import { QUARTERS } from './types/attendance';
 import { ALL_IRISH_HOLIDAYS } from './data/holidays';
@@ -159,23 +159,47 @@ function App() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-100">
-      <div className="bg-white border-b border-gray-200 pb-6 mb-6">
-        <div className="max-w-7xl mx-auto px-4 pt-8">
-          <div className="flex items-center gap-3 mb-2">
-            <div className="bg-indigo-100 p-2 rounded-lg">
-              <Building2 className="w-6 h-6 text-indigo-600" />
+    <div className="min-h-screen bg-gray-100 flex flex-col">
+      {/* Header */}
+      <header className="bg-white border-b border-gray-200 shadow-sm">
+        <div className="max-w-7xl mx-auto px-4 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="bg-indigo-100 p-2 rounded-lg">
+                <Building2 className="w-6 h-6 text-indigo-600" />
+              </div>
+              <h1 className="text-3xl font-bold text-gray-900">Easy Hybrid</h1>
             </div>
-            <h1 className="text-3xl font-bold text-gray-900">Hybrid Work Planner</h1>
+            
+            {/* GitHub Login in top right */}
+            <div className="flex items-center">
+              <GitHubLoginButton onSyncComplete={() => {
+                // Refresh data after sync
+                const savedAttendance = localStorage.getItem('attendance');
+                const savedHolidays = localStorage.getItem('holidays');
+                const savedTargetRate = localStorage.getItem('targetRate');
+                
+                if (savedAttendance) setAttendance(JSON.parse(savedAttendance));
+                if (savedHolidays) setHolidays(JSON.parse(savedHolidays));
+                if (savedTargetRate) setTargetRate(parseFloat(savedTargetRate));
+              }} />
+            </div>
+          </div>
+        </div>
+      </header>
+
+      {/* Main Content */}
+      <main className="flex-1">
+        <div className="max-w-7xl mx-auto px-4 py-6">
+          <div className="mb-6">
+            <p className="text-lg text-gray-600">Track your hybrid office attendance and achieve your target rate</p>
           </div>
           <div className="flex items-center gap-2 text-gray-600">
             <CalendarCheck2 className="w-5 h-5" />
             <p className="text-lg">Balance your remote and office work schedule</p>
           </div>
-        </div>
-      </div>
 
-      <div className="max-w-7xl mx-auto px-4">
+          {/* Main app grid */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2 space-y-8">
             <div className="bg-white rounded-lg shadow p-6">
@@ -226,19 +250,7 @@ function App() {
               </label>
             </div>
             
-            {/* GitHub Gist Settings */}
-            <div className="flex justify-center">
-              <GistSettings onSyncComplete={() => {
-                // Refresh data after sync
-                const savedAttendance = localStorage.getItem('attendance');
-                const savedHolidays = localStorage.getItem('holidays');
-                const savedTargetRate = localStorage.getItem('targetRate');
-                
-                if (savedAttendance) setAttendance(JSON.parse(savedAttendance));
-                if (savedHolidays) setHolidays(JSON.parse(savedHolidays));
-                if (savedTargetRate) setTargetRate(parseFloat(savedTargetRate));
-              }} />
-            </div>
+
           </div>
 
           <div className="space-y-8">
@@ -252,8 +264,19 @@ function App() {
               selectedPeriod={selectedPeriod}
             />
           </div>
+          </div>
         </div>
-      </div>
+        </main>
+      
+      {/* Footer */}
+      <footer className="bg-white border-t border-gray-200 mt-8">
+        <div className="max-w-7xl mx-auto px-4 py-6">
+          <div className="text-center text-sm text-gray-600">
+            <p>© 2024 Easy Hybrid. All rights reserved.</p>
+            <p className="mt-1">Professional hybrid work attendance tracking solution</p>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }
