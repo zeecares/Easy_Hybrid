@@ -4,13 +4,15 @@ import { ChevronLeft, ChevronRight, Building2, CalendarCheck2 } from 'lucide-rea
 import { Calendar } from './components/Calendar';
 import { QuarterlyStats } from './components/QuarterlyStats';
 import { QuickActions } from './components/QuickActions';
+import { GistSettings } from './components/GistSettings';
+import { gistService } from './services/gistService';
 import { QUARTERS } from './types/attendance';
 import { ALL_IRISH_HOLIDAYS } from './data/holidays';
 import type { AttendanceRecord, Holiday, Period } from './types/attendance';
 
 function App() {
   const [currentDate, setCurrentDate] = useState(new Date());
-  const [selectedPeriod, setSelectedPeriod] = useState<Period>('quarterly');
+  const [selectedPeriod] = useState<Period>('quarterly');
   const [attendance, setAttendance] = useState<AttendanceRecord[]>(() => {
     const saved = localStorage.getItem('attendance');
     return saved ? JSON.parse(saved) : [];
@@ -36,6 +38,39 @@ function App() {
     localStorage.setItem('targetRate', targetRate.toString());
   }, [targetRate]);
 
+  // Immediate sync with GitHub Gist when user changes data
+  useEffect(() => {
+    const syncNow = async () => {
+      if (gistService.isEnabled()) {
+        // Use immediate sync for user data changes
+        await gistService.syncNow();
+      }
+    };
+    syncNow();
+  }, [attendance, holidays, targetRate]);
+
+  // Background sync on app load (throttled)
+  useEffect(() => {
+    const backgroundSync = async () => {
+      if (gistService.isEnabled()) {
+        // Use throttled sync for background/initial sync
+        await gistService.autoSyncIfNeeded();
+      }
+    };
+    backgroundSync();
+  }, []);
+
+  // Set up periodic background sync (every 30 minutes)
+  useEffect(() => {
+    const interval = setInterval(async () => {
+      if (gistService.isEnabled()) {
+        await gistService.autoSyncIfNeeded();
+      }
+    }, 30 * 60 * 1000); // 30 minutes
+
+    return () => clearInterval(interval);
+  }, []);
+
   const exportData = () => {
     const data = {
       attendance,
@@ -54,11 +89,11 @@ function App() {
     URL.revokeObjectURL(url);
   };
 
-  const importData = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const importData = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
       const reader = new FileReader();
-      reader.onload = (e) => {
+      reader.onload = async (e) => {
         try {
           const data = JSON.parse(e.target?.result as string);
           setAttendance(data.attendance);
@@ -190,6 +225,20 @@ function App() {
                 </span>
               </label>
             </div>
+            
+            {/* GitHub Gist Settings */}
+            <div className="flex justify-center">
+              <GistSettings onSyncComplete={() => {
+                // Refresh data after sync
+                const savedAttendance = localStorage.getItem('attendance');
+                const savedHolidays = localStorage.getItem('holidays');
+                const savedTargetRate = localStorage.getItem('targetRate');
+                
+                if (savedAttendance) setAttendance(JSON.parse(savedAttendance));
+                if (savedHolidays) setHolidays(JSON.parse(savedHolidays));
+                if (savedTargetRate) setTargetRate(parseFloat(savedTargetRate));
+              }} />
+            </div>
           </div>
 
           <div className="space-y-8">
@@ -201,7 +250,6 @@ function App() {
               targetRate={targetRate}
               onTargetChange={setTargetRate}
               selectedPeriod={selectedPeriod}
-              onPeriodChange={setSelectedPeriod}
             />
           </div>
         </div>
