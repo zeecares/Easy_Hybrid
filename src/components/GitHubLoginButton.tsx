@@ -13,27 +13,44 @@ export function GitHubLoginButton({ onSyncComplete }: GitHubLoginButtonProps) {
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [user, setUser] = useState<GitHubUser | null>(null);
 
-  useEffect(() => {
-    setStatus(gistService.getStatus());
+  // Function to refresh status and user info
+  const refreshStatus = () => {
+    const currentStatus = gistService.getStatus();
+    setStatus(currentStatus);
     
-    // Load user info if we're already connected
-    const loadUserInfo = () => {
-      if (status.enabled && status.hasGist) {
-        // Try to get user info from stored config
-        const userInfo = localStorage.getItem('github_user');
-        
-        if (userInfo) {
-          try {
-            setUser(JSON.parse(userInfo));
-          } catch {
-            console.warn('Failed to load user info');
-          }
+    // Load user info if we're connected
+    if (currentStatus.enabled && currentStatus.hasGist) {
+      const userInfo = localStorage.getItem('github_user');
+      
+      if (userInfo) {
+        try {
+          setUser(JSON.parse(userInfo));
+        } catch {
+          console.warn('Failed to load user info');
+          setUser(null);
         }
       }
-    };
-    
-    loadUserInfo();
-  }, [status.enabled, status.hasGist]);
+    } else {
+      setUser(null);
+    }
+  };
+
+  // Check status on every render to pick up changes (including mocked changes in tests)
+  const currentGistStatus = gistService.getStatus();
+  
+  // Update status if it has changed
+  useEffect(() => {
+    if (currentGistStatus.enabled !== status.enabled || 
+        currentGistStatus.hasGist !== status.hasGist ||
+        currentGistStatus.autoSync !== status.autoSync) {
+      refreshStatus();
+    }
+  }, [currentGistStatus.enabled, currentGistStatus.hasGist, currentGistStatus.autoSync, status.enabled, status.hasGist, status.autoSync]);
+
+  // Initial load
+  useEffect(() => {
+    refreshStatus();
+  }, []);
 
   const handleGitHubLogin = async () => {
     setIsLoading(true);
@@ -55,7 +72,7 @@ export function GitHubLoginButton({ onSyncComplete }: GitHubLoginButtonProps) {
             setUser(result.user);
           }
           
-          setStatus(gistService.getStatus());
+          refreshStatus();
           
           // Try to restore data from gist first, then backup current data
           try {
@@ -103,8 +120,7 @@ export function GitHubLoginButton({ onSyncComplete }: GitHubLoginButtonProps) {
     try {
       gistService.disable();
       localStorage.removeItem('github_user');
-      setUser(null);
-      setStatus(gistService.getStatus());
+      refreshStatus();
       setMessage({ type: 'success', text: 'Disconnected from GitHub' });
     } catch {
       setMessage({ type: 'error', text: 'Failed to disconnect' });
