@@ -53,7 +53,7 @@ export class GistService {
       // Validate token by making a test API call
       const response = await fetch('https://api.github.com/user', {
         headers: {
-          'Authorization': `token ${token}`,
+          'Authorization': `bearer ${token}`,
           'Accept': 'application/vnd.github.v3+json',
         },
       });
@@ -64,6 +64,7 @@ export class GistService {
 
       await response.json();
       
+      // Set up initial config
       this.config = {
         token,
         enabled: true,
@@ -71,13 +72,73 @@ export class GistService {
         lastSyncTime: new Date().toISOString(),
       };
       
-      this.saveConfig();
+      // Try to find existing gist first
+      const existingGist = await this.findExistingGist();
+      if (existingGist.success && existingGist.gistId) {
+        this.config.gistId = existingGist.gistId;
+        this.saveConfig();
+        return { success: true };
+      }
       
-      return { success: true };
+      // If no existing gist found, create a new one with default data
+      const defaultData: GistData = {
+        attendance: [],
+        holidays: [],
+        targetRate: 0.6,
+        lastModified: new Date().toISOString(),
+        version: '1.0.0'
+      };
+      
+      const createResult = await this.createGist(defaultData);
+      if (createResult.success) {
+        return { success: true };
+      } else {
+        return { success: false, error: createResult.error };
+      }
+      
     } catch (error) {
       return { 
         success: false, 
         error: error instanceof Error ? error.message : 'Unknown error' 
+      };
+    }
+  }
+
+  // Find existing gist with attendance data
+  private async findExistingGist(): Promise<{ success: boolean; gistId?: string; error?: string }> {
+    if (!this.config?.token) {
+      return { success: false, error: 'No GitHub token configured' };
+    }
+
+    try {
+      const response = await fetch('https://api.github.com/gists', {
+        headers: {
+          'Authorization': `bearer ${this.config.token}`,
+          'Accept': 'application/vnd.github.v3+json',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`GitHub API error: ${response.status}`);
+      }
+
+      const gists = await response.json();
+      
+      // Look for a gist with our filename and description
+      const existingGist = gists.find((gist: { description: string; files: Record<string, unknown>; id: string }) => 
+        gist.description === this.GIST_DESCRIPTION &&
+        gist.files[this.GIST_FILENAME]
+      );
+      
+      if (existingGist) {
+        return { success: true, gistId: existingGist.id };
+      } else {
+        return { success: false, error: 'No existing gist found' };
+      }
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to search gists'
       };
     }
   }
@@ -92,7 +153,7 @@ export class GistService {
       const response = await fetch('https://api.github.com/gists', {
         method: 'POST',
         headers: {
-          'Authorization': `token ${this.config.token}`,
+          'Authorization': `bearer ${this.config.token}`,
           'Accept': 'application/vnd.github.v3+json',
           'Content-Type': 'application/json',
         },
@@ -136,7 +197,7 @@ export class GistService {
       const response = await fetch(`https://api.github.com/gists/${gistId}`, {
         method: 'PATCH',
         headers: {
-          'Authorization': `token ${this.config.token}`,
+          'Authorization': `bearer ${this.config.token}`,
           'Accept': 'application/vnd.github.v3+json',
           'Content-Type': 'application/json',
         },
@@ -171,7 +232,7 @@ export class GistService {
     try {
       const response = await fetch(`https://api.github.com/gists/${this.config.gistId}`, {
         headers: {
-          'Authorization': `token ${this.config.token}`,
+          'Authorization': `bearer ${this.config.token}`,
           'Accept': 'application/vnd.github.v3+json',
         },
       });
