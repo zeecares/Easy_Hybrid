@@ -1,0 +1,97 @@
+// Cloudflare Pages Function for GitHub OAuth token exchange
+// This function handles the server-side token exchange that can't be done from the browser
+
+interface Env {
+  GITHUB_CLIENT_SECRET: string;
+}
+
+interface GitHubTokenResponse {
+  access_token?: string;
+  error?: string;
+  error_description?: string;
+}
+
+export async function onRequestPost(context: { request: Request; env: Env }) {
+  const { request, env } = context;
+
+  // Set CORS headers
+  const corsHeaders = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type',
+  };
+
+  // Handle CORS preflight
+  if (request.method === 'OPTIONS') {
+    return new Response(null, { headers: corsHeaders });
+  }
+
+  try {
+    const { code, client_id, redirect_uri } = await request.json();
+
+    if (!code || !client_id || !redirect_uri) {
+      return new Response(
+        JSON.stringify({ error: 'Missing required parameters' }),
+        { 
+          status: 400, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      );
+    }
+
+    // Exchange authorization code for access token
+    const tokenResponse = await fetch('https://github.com/login/oauth/access_token', {
+      method: 'POST',
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'User-Agent': 'Easy-Hybrid-App',
+      },
+      body: new URLSearchParams({
+        client_id,
+        client_secret: env.GITHUB_CLIENT_SECRET,
+        code,
+        redirect_uri,
+      }),
+    });
+
+    if (!tokenResponse.ok) {
+      throw new Error(`GitHub API error: ${tokenResponse.status}`);
+    }
+
+    const tokenData: GitHubTokenResponse = await tokenResponse.json();
+
+    if (tokenData.error) {
+      return new Response(
+        JSON.stringify({ 
+          error: tokenData.error_description || tokenData.error 
+        }),
+        { 
+          status: 400, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      );
+    }
+
+    return new Response(
+      JSON.stringify({ 
+        access_token: tokenData.access_token 
+      }),
+      { 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      }
+    );
+
+  } catch (error) {
+    console.error('OAuth token exchange failed:', error);
+    return new Response(
+      JSON.stringify({ 
+        error: error instanceof Error ? error.message : 'Token exchange failed' 
+      }),
+      { 
+        status: 500, 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      }
+    );
+  }
+}

@@ -6,6 +6,7 @@ import { QuarterlyStats } from './components/QuarterlyStats';
 import { QuickActions } from './components/QuickActions';
 import { GitHubLoginButton } from './components/GitHubLoginButton';
 import { gistService } from './services/gistService';
+import { githubOAuthService } from './services/githubOAuthService';
 import { QUARTERS } from './types/attendance';
 import { ALL_IRISH_HOLIDAYS } from './data/holidays';
 import type { AttendanceRecord, Holiday, Period } from './types/attendance';
@@ -25,6 +26,58 @@ function App() {
     const saved = localStorage.getItem('targetRate');
     return saved ? parseFloat(saved) : 50;
   });
+
+  // Handle OAuth callback on app load
+  useEffect(() => {
+    const handleOAuthCallback = async () => {
+      if (githubOAuthService.isOAuthCallback()) {
+        try {
+          const result = await githubOAuthService.handleOAuthCallback();
+          if (result.success && result.accessToken) {
+            // Setup gist service with OAuth token
+            const setupResult = await gistService.setupGist(result.accessToken, true);
+            
+            if (setupResult.success) {
+              // Store user info for display
+              if (result.user) {
+                localStorage.setItem('github_user', JSON.stringify(result.user));
+              }
+              
+              // Try to restore data from gist first
+              try {
+                const restoreResult = await gistService.restoreFromGist();
+                if (restoreResult.success) {
+                  // Refresh data from localStorage after restore
+                  const savedAttendance = localStorage.getItem('attendance');
+                  const savedHolidays = localStorage.getItem('holidays');
+                  const savedTargetRate = localStorage.getItem('targetRate');
+                  
+                  if (savedAttendance) setAttendance(JSON.parse(savedAttendance));
+                  if (savedHolidays) setHolidays(JSON.parse(savedHolidays));
+                  if (savedTargetRate) setTargetRate(parseFloat(savedTargetRate));
+                } else {
+                  // If restore fails, backup current data
+                  await gistService.backupToGist();
+                }
+              } catch (error) {
+                console.error('Data sync failed:', error);
+              }
+            }
+          }
+        } catch (error) {
+          console.error('OAuth callback handling failed:', error);
+        } finally {
+          // Clean up URL parameters after handling
+          if (window.history.replaceState) {
+            const cleanUrl = window.location.origin + window.location.pathname;
+            window.history.replaceState({}, document.title, cleanUrl);
+          }
+        }
+      }
+    };
+
+    handleOAuthCallback();
+  }, []);
 
   useEffect(() => {
     localStorage.setItem('attendance', JSON.stringify(attendance));

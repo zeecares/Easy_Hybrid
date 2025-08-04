@@ -114,25 +114,26 @@ export class GitHubOAuthService {
     }
   }
 
-  // Step 3: Exchange authorization code for access token
+  // Step 3: Exchange authorization code for access token using backend function
   private async exchangeCodeForToken(code: string): Promise<{ success: boolean; accessToken?: string; error?: string }> {
     try {
-      const response = await fetch(this.ACCESS_TOKEN_URL, {
+      // Use our Cloudflare Pages function for secure token exchange
+      const response = await fetch('/api/oauth/callback', {
         method: 'POST',
         headers: {
           'Accept': 'application/json',
-          'Content-Type': 'application/x-www-form-urlencoded',
-          'User-Agent': 'Easy-Hybrid-App'
+          'Content-Type': 'application/json',
         },
-        body: new URLSearchParams({
-          client_id: this.CLIENT_ID,
+        body: JSON.stringify({
           code: code,
+          client_id: this.CLIENT_ID,
           redirect_uri: this.REDIRECT_URI
         }),
       });
 
       if (!response.ok) {
-        throw new Error(`Token exchange failed: ${response.status}`);
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `Token exchange failed: ${response.status}`);
       }
 
       const data = await response.json();
@@ -140,14 +141,14 @@ export class GitHubOAuthService {
       if (data.error) {
         return {
           success: false,
-          error: data.error_description || data.error
+          error: data.error
         };
       }
 
       if (!data.access_token) {
         return {
           success: false,
-          error: 'No access token received from GitHub'
+          error: 'No access token received from backend'
         };
       }
 
