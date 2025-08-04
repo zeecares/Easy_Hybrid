@@ -1,6 +1,10 @@
 # Cloudflare Pages configuration for Easy Hybrid
 name = "easy-hybrid"
 compatibility_date = "2024-08-01"
+pages_build_output_dir = "dist"
+
+[build]
+command = "npm run build"
 
 [env.production]
 vars = { NODE_ENV = "production" }
